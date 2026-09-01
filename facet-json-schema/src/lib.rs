@@ -270,11 +270,7 @@ impl SchemaContext {
             Some(shape.doc.join("\n").trim().to_string())
         };
 
-        if shape
-            .attributes
-            .iter()
-            .any(|attr| attr.ns == Some("facet_json_schema") && attr.key == "unconstrained_string")
-        {
+        if is_unconstrained_string(shape) {
             return JsonSchema {
                 type_: Some(SchemaType::String.into()),
                 description,
@@ -478,7 +474,9 @@ impl SchemaContext {
                     } else {
                         Some(field.doc.join("\n").trim().to_string())
                     };
-                    field_schema.description = field_description;
+                    if field_description.is_some() || !is_unconstrained_string(field.shape.get()) {
+                        field_schema.description = field_description;
+                    }
 
                     // Check if field is required (not Option and no default)
                     let is_option = matches!(field.shape.get().def, Def::Option(_));
@@ -594,6 +592,13 @@ impl SchemaContext {
             }
         }
     }
+}
+
+fn is_unconstrained_string(shape: &Shape) -> bool {
+    shape
+        .attributes
+        .iter()
+        .any(|attr| attr.ns == Some("facet_json_schema") && attr.key == "unconstrained_string")
 }
 
 #[cfg(test)]

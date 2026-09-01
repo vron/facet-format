@@ -44,6 +44,10 @@ fn override_is_used_when_the_enum_is_nested() {
         Some(SchemaTypes::Single(SchemaType::String))
     ));
     assert!(value.enum_.is_none());
+    assert_eq!(
+        value.description.as_deref(),
+        Some("One of the values supported by the application.")
+    );
 }
 
 #[test]
