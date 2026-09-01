@@ -19,6 +19,25 @@
 //! let schema = to_schema::<User>();
 //! println!("{}", schema);
 //! ```
+//!
+//! Large enums can opt out of listing every variant in the generated schema:
+//!
+//! ```
+//! use facet::Facet;
+//! use facet_json_schema::schema_for;
+//!
+//! #[derive(Facet)]
+//! #[facet(facet_json_schema::unconstrained_string)]
+//! /// A value supported by the application.
+//! #[repr(u8)]
+//! enum LargeEnum {
+//!     Alpha,
+//!     Beta,
+//! }
+//!
+//! let schema = schema_for::<LargeEnum>();
+//! assert!(schema.enum_.is_none());
+//! ```
 
 extern crate alloc;
 
@@ -28,6 +47,21 @@ use alloc::vec::Vec;
 
 use facet::Facet;
 use facet_core::{Def, Field, Shape, StructKind, Type, UserType};
+
+facet::define_attr_grammar! {
+    ns "facet_json_schema";
+    crate_path crate;
+
+    /// Attributes controlling JSON Schema generation.
+    pub enum Attr {
+        /// Describe this type as an unconstrained JSON string.
+        ///
+        /// This changes only the generated schema. Serialization and
+        /// deserialization continue to use the type's normal Facet shape.
+        #[target(container)]
+        UnconstrainedString,
+    }
+}
 
 /// A JSON Schema definition.
 ///
@@ -235,6 +269,19 @@ impl SchemaContext {
         } else {
             Some(shape.doc.join("\n").trim().to_string())
         };
+
+        if shape
+            .attributes
+            .iter()
+            .any(|attr| attr.ns == Some("facet_json_schema") && attr.key == "unconstrained_string")
+        {
+            return JsonSchema {
+                type_: Some(SchemaType::String.into()),
+                description,
+                title: Some(shape.type_identifier.to_string()),
+                ..JsonSchema::new()
+            };
+        }
 
         // Handle the type based on its definition
         // NOTE: We check Def BEFORE shape.inner because types like Vec<T> set
